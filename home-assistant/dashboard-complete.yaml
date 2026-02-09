@@ -1,0 +1,900 @@
+# ATO Aquarium Monitor - Complete 6-Tab Dashboard
+# 
+# Installation:
+# 1. Go to Settings → Dashboards
+# 2. Click "Add Dashboard" → Name: "Aquarium ATO"
+# 3. Click the 3 dots → "Edit Dashboard" → "Raw Configuration Editor"
+# 4. Paste this entire file
+# 5. Save
+#
+# Required HACS Components:
+# - ApexCharts Card (for charts)
+# - Card Mod (for styling)
+# - Layout Card (optional, for advanced layouts)
+
+title: Aquarium ATO
+views:
+  # ============================================================================
+  # TAB 1: OVERVIEW
+  # ============================================================================
+  - title: Overview
+    path: overview
+    icon: mdi:home
+    badges: []
+    cards:
+      # Header
+      - type: markdown
+        content: |
+          # 🐠 Aquarium ATO Monitor
+          Real-time monitoring and control
+        card_mod:
+          style: |
+            ha-card {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              text-align: center;
+              font-size: 1.2em;
+            }
+      
+      # Status Row
+      - type: horizontal-stack
+        cards:
+          # Tank Temperature
+          - type: gauge
+            entity: sensor.ato_tank_temperature
+            name: Tank Temperature
+            min: 18
+            max: 32
+            severity:
+              green: 24
+              yellow: 22
+              red: 20
+            needle: true
+            segments:
+              - from: 18
+                color: '#3b82f6'
+              - from: 22
+                color: '#10b981'
+              - from: 26
+                color: '#10b981'
+              - from: 28
+                color: '#f59e0b'
+              - from: 30
+                color: '#ef4444'
+          
+          # Reservoir Level
+          - type: gauge
+            entity: sensor.ato_reservoir_percent
+            name: Reservoir Level
+            min: 0
+            max: 100
+            severity:
+              green: 40
+              yellow: 20
+              red: 0
+            needle: true
+          
+          # Daily Usage
+          - type: statistic
+            entity: sensor.ato_daily_usage
+            name: Today's Usage
+            stat_type: state
+            period:
+              calendar:
+                period: day
+      
+      # Current Metrics
+      - type: entities
+        title: Current Metrics
+        show_header_toggle: false
+        entities:
+          - entity: sensor.ato_state
+            name: ATO Status
+            icon: mdi:water-pump
+          
+          - entity: sensor.ato_pump_state
+            name: Pump
+            card_mod:
+              style: |
+                :host {
+                  {% if is_state('sensor.ato_pump_state', 'ON') %}
+                  --paper-item-icon-color: #3b82f6;
+                  animation: pulse 1.5s infinite;
+                  {% else %}
+                  --paper-item-icon-color: #6b7280;
+                  {% endif %}
+                }
+                @keyframes pulse {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.5; }
+                }
+          
+          - entity: sensor.ato_hours_since_last
+            name: Hours Since Last Fill
+            icon: mdi:clock-outline
+          
+          - entity: sensor.ato_activation_count
+            name: Today's Activations
+            icon: mdi:counter
+          
+          - entity: sensor.ato_reservoir_level
+            name: Reservoir
+            icon: mdi:water
+          
+          - entity: sensor.ato_days_until_empty
+            name: Days Until Empty
+            icon: mdi:calendar-clock
+      
+      # Evaporation Rate Chart (24 hours)
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 📊 Evaporation Rate (Last 24 Hours)
+        graph_span: 24h
+        span:
+          start: day
+        now:
+          show: true
+          label: Now
+        apex_config:
+          chart:
+            height: 200
+          stroke:
+            curve: smooth
+            width: 3
+          yaxis:
+            decimals: 2
+            title:
+              text: "Liters per Hour"
+        series:
+          - entity: sensor.ato_rate_24_hours
+            name: Evaporation Rate
+            color: '#667eea'
+            stroke_width: 3
+      
+      # Rate Comparison
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.ato_rate_1_hour
+            name: Last Hour
+            min: 0
+            max: 1
+            needle: true
+          
+          - type: gauge
+            entity: sensor.ato_rate_6_hours
+            name: Last 6 Hours
+            min: 0
+            max: 0.5
+            needle: true
+          
+          - type: gauge
+            entity: sensor.ato_rate_24_hours
+            name: Last 24 Hours
+            min: 0
+            max: 0.3
+            needle: true
+      
+      # Controls
+      - type: entities
+        title: 🎛️ Controls
+        show_header_toggle: false
+        entities:
+          - entity: switch.ato_monitoring_enable
+            name: Monitoring
+            icon: mdi:shield-check
+          
+          - entity: switch.ato_manual_pump
+            name: Manual Pump
+            icon: mdi:pump
+      
+      # Alerts
+      - type: conditional
+        conditions:
+          - entity: sensor.ato_alerts
+            state_not: "No alerts"
+        card:
+          type: markdown
+          content: |
+            ## 🚨 Active Alerts
+            {{ states('sensor.ato_alerts') }}
+          card_mod:
+            style: |
+              ha-card {
+                background: #fef2f2;
+                border-left: 4px solid #ef4444;
+              }
+      
+      # Calibration Status
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.ato_calibrated_l_activation
+            name: Calibration
+            icon: mdi:tune
+          
+          - type: gauge
+            entity: sensor.ato_calibration_confidence
+            name: Confidence
+            min: 0
+            max: 100
+            severity:
+              green: 70
+              yellow: 40
+              red: 0
+            needle: true
+
+  # ============================================================================
+  # TAB 2: ANALYTICS
+  # ============================================================================
+  - title: Analytics
+    path: analytics
+    icon: mdi:chart-line
+    badges: []
+    cards:
+      # Header
+      - type: markdown
+        content: |
+          # 📈 Analytics & Trends
+        card_mod:
+          style: |
+            ha-card {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              text-align: center;
+            }
+      
+      # 30-Day Usage Chart
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 💧 Water Usage (Last 30 Days)
+        graph_span: 30d
+        apex_config:
+          chart:
+            height: 300
+          stroke:
+            curve: smooth
+            width: 2
+          fill:
+            type: gradient
+            gradient:
+              shadeIntensity: 0.8
+              opacityFrom: 0.7
+              opacityTo: 0.2
+        series:
+          - entity: sensor.ato_daily_usage
+            name: Daily Usage
+            type: area
+            color: '#3b82f6'
+            group_by:
+              func: sum
+              duration: 1d
+      
+      # Rate Comparison Chart
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 📊 Evaporation Rate Comparison
+        graph_span: 7d
+        apex_config:
+          chart:
+            height: 250
+          stroke:
+            curve: smooth
+            width: 2
+        series:
+          - entity: sensor.ato_rate_1_hour
+            name: 1 Hour
+            color: '#ef4444'
+          - entity: sensor.ato_rate_6_hours
+            name: 6 Hours
+            color: '#f59e0b'
+          - entity: sensor.ato_rate_24_hours
+            name: 24 Hours
+            color: '#10b981'
+          - entity: sensor.ato_rate_7_days
+            name: 7 Days
+            color: '#3b82f6'
+      
+      # Statistics Cards
+      - type: horizontal-stack
+        cards:
+          - type: statistic
+            entity: sensor.ato_daily_usage
+            name: Avg Daily (Week)
+            stat_type: mean
+            period:
+              calendar:
+                period: week
+          
+          - type: statistic
+            entity: sensor.ato_daily_usage
+            name: Total This Week
+            stat_type: sum
+            period:
+              calendar:
+                period: week
+          
+          - type: statistic
+            entity: sensor.ato_activation_count
+            name: Avg Activations
+            stat_type: mean
+            period:
+              calendar:
+                period: week
+      
+      # 30-Day Summary
+      - type: entities
+        title: 📊 30-Day Summary
+        entities:
+          - entity: sensor.ato_30_day_total
+            name: Total Usage
+            icon: mdi:water-circle
+          
+          - entity: sensor.ato_rate_30_days
+            name: Average Rate
+            icon: mdi:speedometer
+          
+          - type: custom:template-entity-row
+            name: Activations per Day
+            state: >
+              {{ (states('sensor.ato_stats_full') | from_json).total_activations_30d / 30 | round(1) }}
+            icon: mdi:counter
+      
+      # Reservoir Depletion Chart
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 🪣 Reservoir Level Trend
+        graph_span: 7d
+        apex_config:
+          chart:
+            height: 200
+          stroke:
+            curve: stepline
+            width: 3
+          fill:
+            type: solid
+            opacity: 0.3
+        series:
+          - entity: sensor.ato_reservoir_level
+            name: Reservoir Level
+            color: '#06b6d4'
+
+  # ============================================================================
+  # TAB 3: SETTINGS
+  # ============================================================================
+  - title: Settings
+    path: settings
+    icon: mdi:cog
+    badges: []
+    cards:
+      # Header
+      - type: markdown
+        content: |
+          # ⚙️ Settings & Configuration
+        card_mod:
+          style: |
+            ha-card {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              text-align: center;
+            }
+      
+      # Safety Controls
+      - type: entities
+        title: 🛡️ Safety Controls
+        show_header_toggle: false
+        entities:
+          - entity: switch.ato_monitoring_enable
+            name: Enable Monitoring
+            icon: mdi:shield-check
+          
+          - entity: binary_sensor.ato_monitoring_active
+            name: Status
+            icon: mdi:check-circle
+      
+      # Pump Controls
+      - type: entities
+        title: 🔵 Pump Controls
+        show_header_toggle: false
+        entities:
+          - entity: sensor.ato_pump_state
+            name: Pump Status
+            icon: mdi:pump
+          
+          - entity: switch.ato_manual_pump
+            name: Manual Override
+            icon: mdi:water-pump
+      
+      # Refill Recording
+      - type: entities
+        title: 💧 Record Reservoir Refill
+        show_header_toggle: false
+        entities:
+          - entity: number.ato_refill_amount
+            name: Liters Added
+          
+          - entity: button.ato_refilled_reservoir_full
+            name: Quick Refill (23L)
+            icon: mdi:water-plus
+      
+      # Temperature Calibration
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.ato_temperature_raw
+            name: Raw Reading
+            min: 18
+            max: 32
+            needle: true
+          
+          - type: gauge
+            entity: sensor.ato_tank_temperature
+            name: Calibrated
+            min: 18
+            max: 32
+            needle: true
+      
+      - type: entities
+        title: 🌡️ Temperature Calibration
+        entities:
+          - entity: sensor.ato_temperature_raw
+            name: Raw Sensor
+          
+          - entity: number.ato_temperature_calibration
+            name: Offset
+            icon: mdi:tune
+          
+          - entity: sensor.ato_tank_temperature
+            name: Calibrated Temp
+      
+      # System Info
+      - type: entities
+        title: ℹ️ System Information
+        entities:
+          - entity: sensor.ato_current_season
+            name: Current Season
+            icon: mdi:calendar-range
+          
+          - entity: sensor.ato_state
+            name: System State
+          
+          - entity: sensor.ato_activations_since_refill
+            name: Since Refill
+      
+      # Alert Thresholds
+      - type: markdown
+        title: ⚠️ Alert Thresholds
+        content: |
+          Current configuration in `config.py`:
+          
+          **Water Usage:**
+          - Max activations/hour: 3
+          - Min hours between: 4h
+          - Max hours between: 36h
+          - Max daily usage: 6.0L
+          
+          **Reservoir:**
+          - Low warning: 5.0L
+          - Capacity: 23.0L
+          
+          **Temperature:**
+          - Warning: 22-28°C
+          - Critical: 20-30°C
+          
+          **Pump Safety:**
+          - Max fill duration: 30 seconds
+        card_mod:
+          style: |
+            ha-card {
+              background: #f3f4f6;
+            }
+
+  # ============================================================================
+  # TAB 4: CALIBRATION
+  # ============================================================================
+  - title: Calibration
+    path: calibration
+    icon: mdi:tune
+    badges: []
+    cards:
+      # Header
+      - type: markdown
+        content: |
+          # 🎯 Auto-Calibration Analytics
+        card_mod:
+          style: |
+            ha-card {
+              background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+              color: white;
+              text-align: center;
+            }
+      
+      # Current Calibration
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.ato_calibrated_l_activation
+            name: Current Calibration
+            unit: L/activation
+            min: 0
+            max: 3
+            needle: true
+          
+          - type: gauge
+            entity: sensor.ato_calibration_confidence
+            name: Confidence
+            min: 0
+            max: 100
+            severity:
+              green: 70
+              yellow: 40
+              red: 0
+            needle: true
+          
+          - type: statistic
+            entity: sensor.ato_activations_since_refill
+            name: Since Refill
+            stat_type: state
+      
+      # Calibration Status
+      - type: markdown
+        content: |
+          ## 📊 Calibration Status
+          
+          **Current Calibration:** {{ states('sensor.ato_calibrated_l_activation') }}L per activation
+          
+          **Confidence Level:** {{ states('sensor.ato_calibration_confidence') }}%
+          
+          **Progress:** 
+          {% set conf = states('sensor.ato_calibration_confidence') | int(0) %}
+          {% if conf >= 80 %}
+          🟢 **Excellent** - Highly accurate calibration
+          {% elif conf >= 60 %}
+          🟡 **Good** - Reliable calibration
+          {% elif conf >= 40 %}
+          🟠 **Learning** - Building data
+          {% else %}
+          🔴 **Insufficient** - Need more refills
+          {% endif %}
+          
+          **Activations Since Last Refill:** {{ states('sensor.ato_activations_since_refill') }}
+        card_mod:
+          style: |
+            ha-card {
+              {% set conf = states('sensor.ato_calibration_confidence') | int(0) %}
+              {% if conf >= 70 %}
+              background: linear-gradient(135deg, #059669 0%, #047857 100%);
+              {% elif conf >= 40 %}
+              background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+              {% else %}
+              background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+              {% endif %}
+              color: white;
+            }
+      
+      # Refill Controls
+      - type: entities
+        title: 💧 Record Refill for Calibration
+        entities:
+          - entity: number.ato_refill_amount
+            name: Liters Added
+          
+          - entity: button.ato_refilled_reservoir_full
+            name: Full Refill (23L)
+      
+      # How It Works
+      - type: markdown
+        content: |
+          ## 🎓 How Auto-Calibration Works
+          
+          1. System tracks activations between refills
+          2. When you refill, enter exact amount added
+          3. Calculates: **Liters ÷ Activations = L/activation**
+          4. Uses rolling average of last 5 refills
+          5. Confidence increases 20% per refill
+          
+          **To Improve Calibration:**
+          - Always measure refill amounts accurately
+          - Record every refill consistently
+          - Wait for 5 refills for 100% confidence
+        card_mod:
+          style: |
+            ha-card {
+              background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+              color: white;
+            }
+
+  # ============================================================================
+  # TAB 5: ADVANCED
+  # ============================================================================
+  - title: Advanced
+    path: advanced
+    icon: mdi:chart-box
+    badges: []
+    cards:
+      # Header
+      - type: markdown
+        content: |
+          # 📊 Advanced Analytics & History
+        card_mod:
+          style: |
+            ha-card {
+              background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+              color: white;
+              text-align: center;
+            }
+      
+      # Current Season
+      - type: markdown
+        content: |
+          ## {{ states.sensor.ato_stats_full.attributes.season_emoji if states.sensor.ato_stats_full.attributes else '🌍' }} Current Season: {{ states('sensor.ato_current_season') }}
+          
+          **Today's Date:** {{ now().strftime('%A, %B %d, %Y') }}
+          
+          Evaporation rates vary by season due to:
+          - Temperature changes
+          - Humidity variations
+          - Lighting duration
+          - Heating/cooling systems
+        card_mod:
+          style: |
+            ha-card {
+              {% set season = states('sensor.ato_current_season') %}
+              {% if season == 'Summer' %}
+              background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+              {% elif season == 'Winter' %}
+              background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+              {% elif season == 'Spring' %}
+              background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+              {% elif season == 'Autumn' %}
+              background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+              {% endif %}
+              color: white;
+            }
+      
+      # System Statistics
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.ato_alerts_count
+            name: Total Alerts
+            icon: mdi:alert-circle
+          
+          - type: entity
+            entity: sensor.ato_pump_cycles_count
+            name: Pump Cycles
+            icon: mdi:counter
+          
+          - type: entity
+            entity: sensor.ato_30_day_total
+            name: 30-Day Usage
+            icon: mdi:water
+      
+      # Alert Status
+      - type: conditional
+        conditions:
+          - entity: binary_sensor.ato_critical_alert
+            state: "on"
+        card:
+          type: markdown
+          content: |
+            ## 🚨 CRITICAL ALERT ACTIVE
+            Check your system immediately!
+          card_mod:
+            style: |
+              ha-card {
+                background: #fef2f2;
+                border: 3px solid #ef4444;
+                animation: pulse-alert 2s infinite;
+              }
+              @keyframes pulse-alert {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+              }
+      
+      # Maintenance Schedule
+      - type: markdown
+        title: 🔧 Maintenance Schedule
+        content: |
+          **Weekly:**
+          - ✅ Check reservoir level
+          - ✅ Inspect float switch
+          - ✅ Verify pump operation
+          
+          **Monthly:**
+          - ✅ Clean float switch
+          - ✅ Clean temperature sensor
+          - ✅ Check tubing
+          - ✅ Test alerts
+          
+          **Quarterly:**
+          - ✅ Re-calibrate sensors
+          - ✅ Review thresholds
+          - ✅ Clean pump filter
+          - ✅ Replace tubing if worn
+          
+          **Annually:**
+          - ✅ Replace float switch
+          - ✅ Deep clean system
+          - ✅ Review yearly trends
+
+  # ============================================================================
+  # TAB 6: TEMPERATURE
+  # ============================================================================
+  - title: Temperature
+    path: temperature
+    icon: mdi:thermometer
+    badges: []
+    cards:
+      # Header
+      - type: markdown
+        content: |
+          # 🌡️ Tank Temperature Monitoring
+        card_mod:
+          style: |
+            ha-card {
+              background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+              color: white;
+              text-align: center;
+            }
+      
+      # Current Temperature
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.ato_tank_temperature
+            name: Current Temperature
+            min: 18
+            max: 32
+            severity:
+              green: 24
+              yellow: 22
+              red: 20
+            needle: true
+          
+          - type: markdown
+            content: |
+              ### 📊 Status
+              
+              **Current:** {{ states('sensor.ato_tank_temperature') }}°C
+              
+              {% set temp = states('sensor.ato_tank_temperature') | float(0) %}
+              {% if temp < 20 %}
+              🔴 **CRITICAL LOW**
+              {% elif temp < 22 %}
+              🟡 **Low**
+              {% elif temp >= 24 and temp <= 26 %}
+              🟢 **Perfect**
+              {% elif temp > 28 %}
+              🟡 **High**
+              {% elif temp > 30 %}
+              🔴 **CRITICAL HIGH**
+              {% else %}
+              🟢 **Good**
+              {% endif %}
+              
+              **Ideal:** 24-26°C
+            card_mod:
+              style: |
+                ha-card {
+                  {% set temp = states('sensor.ato_tank_temperature') | float(0) %}
+                  {% if temp < 22 or temp > 28 %}
+                  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                  {% else %}
+                  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                  {% endif %}
+                  color: white;
+                }
+      
+      # 24-Hour Temperature Chart
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 📈 Temperature Trend (24 Hours)
+        graph_span: 24h
+        apex_config:
+          chart:
+            height: 300
+          annotations:
+            yaxis:
+              - y: 24
+                y2: 26
+                fillColor: '#10b981'
+                opacity: 0.1
+                label:
+                  text: 'Ideal Range'
+              - y: 22
+                borderColor: '#f59e0b'
+                strokeDashArray: 5
+              - y: 28
+                borderColor: '#f59e0b'
+                strokeDashArray: 5
+          stroke:
+            curve: smooth
+            width: 3
+        series:
+          - entity: sensor.ato_tank_temperature
+            name: Temperature
+            color: '#ef4444'
+            stroke_width: 3
+      
+      # Temperature Statistics
+      - type: horizontal-stack
+        cards:
+          - type: statistic
+            entity: sensor.ato_tank_temperature
+            name: 24h Average
+            stat_type: mean
+            period:
+              calendar:
+                period: day
+          
+          - type: statistic
+            entity: sensor.ato_tank_temperature
+            name: 24h Min
+            stat_type: min
+            period:
+              calendar:
+                period: day
+          
+          - type: statistic
+            entity: sensor.ato_tank_temperature
+            name: 24h Max
+            stat_type: max
+            period:
+              calendar:
+                period: day
+      
+      # 7-Day Temperature
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 📅 Temperature History (7 Days)
+        graph_span: 7d
+        apex_config:
+          chart:
+            height: 250
+          stroke:
+            curve: smooth
+            width: 2
+        series:
+          - entity: sensor.ato_tank_temperature
+            name: Temperature
+            color: '#ef4444'
+      
+      # Calibration Status
+      - type: entities
+        title: 🔧 Sensor Calibration
+        entities:
+          - entity: sensor.ato_temperature_raw
+            name: Raw Reading
+          
+          - entity: number.ato_temperature_calibration
+            name: Calibration Offset
+          
+          - entity: sensor.ato_tank_temperature
+            name: Calibrated Reading
+      
+      # Temperature Info
+      - type: markdown
+        content: |
+          ## ℹ️ Temperature Guidelines
+          
+          **Tropical Fish:** 24-26°C (75-79°F)
+          **Goldfish:** 20-23°C (68-74°F)
+          **Reef Tank:** 24-26°C (75-79°F)
+          **Discus:** 28-30°C (82-86°F)
+          
+          **Sensor:** DS18B20 Waterproof
+          **Accuracy:** ±0.5°C (factory)
+          **Reading Interval:** Every 30 seconds
+        card_mod:
+          style: |
+            ha-card {
+              background: #ecfdf5;
+              border-left: 4px solid #10b981;
+            }
