@@ -1,0 +1,22 @@
+[Unit]
+Description=ATO Aquarium Monitor Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/ato-aquarium-monitor
+ExecStart=/usr/bin/python3 /home/pi/ato-aquarium-monitor/ato_monitor.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
