@@ -349,3 +349,21 @@ If you find this project useful, please consider giving it a star! ⭐
 **Made with ❤️ for the aquarium community**
 
 *Keep your fish happy and your tank topped off!* 🐠💧
+
+≈==============================
+## 🌡️ 3-Sensor Temperature Monitoring
+
+**NEW:** Upgraded to support 3 DS18B20 temperature sensors!
+
+Monitor:
+- 🐠 **Display Tank** - Main aquarium
+- 💧 **Sump** - Filtration area
+- 🪣 **ATO Reservoir** - Top-off water
+
+### Features:
+- Individual calibration per sensor
+- Temperature difference alerts
+- Circulation monitoring
+- New "All Temps" dashboard tab
+
+See [QUICK_3SENSOR_SETUP.md](QUICK_3SENSOR_SETUP.md) for installation!
